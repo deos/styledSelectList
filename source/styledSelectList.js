@@ -9,6 +9,7 @@
  wrapperClass             CSS class for wrapper div
  optgroupClass            CSS class for optgroup elements
  optgroupChildClass       CSS class for the option elements within optgroup elements
+ disabledClass            CSS class for disabled options and optgroups
  hideOnMouseleave         If true, list hides when mouse leaves it (default: false)
  hideOnMouseleaveDelay    Delay for mouse leave auto-hide in ms, is less annoying, 0 is instant-hide (default: 500)
  resizeOnWindowResize     If true, list gets resized on window resize, usefull if wrapper has no fixed with (default: false)
@@ -42,6 +43,7 @@ var styledSelectList = new Class({
         'wrapperClass': 'styledSelectList',
         'optgroupClass': 'styledSelectOptGroup',
         'optgroupChildClass': 'styledSelectGrouped',
+        'disabledClass': 'styledSelectDisabled',
         'hideOnMouseleave': false,
         'hideOnMouseleaveDelay': 500,
         'resizeOnWindowResize': false,
@@ -241,12 +243,22 @@ var styledSelectList = new Class({
         }
 
         //helper function for creating the list elements
-        var createItem = function(opt, i, optgroupChild) {
+        var createItem = function(opt, i, optgroupChild, optgroupDisabled) {
             var li = new Element('li');
 
-            //set text, events and value
+            //set text and value
             if (opt.get('tag') == 'optgroup') {
-                li.set('html', opt.get('label')).addEvents({
+                li.set('html', opt.get('label'));
+            }
+            else {
+                li.set('html', opt.get('text'))
+                    .store('optionValue', (opt.getAttribute('value') !== null ? opt.getAttribute('value') : (this.options.fallBackToOptionText ? opt.get('text') : '')));
+            }
+
+            //set events
+            if (opt.get('tag') == 'optgroup' || opt.get('disabled') || optgroupDisabled) {
+                //no real events for optgroups and disabled elements
+                li.addEvents({
                     'click': function(e) {
                         if (e) {
                             e.preventDefault();
@@ -258,7 +270,8 @@ var styledSelectList = new Class({
                 });
             }
             else {
-                li.set('html', opt.get('text')).addEvents({
+                //normal elements have sth to do
+                li.addEvents({
                     'click': function(e) {
                         if (e) {
                             e.preventDefault();
@@ -268,22 +281,26 @@ var styledSelectList = new Class({
                     'mouseup': function(e) {
                         e.stop();
                     }
-                }).store('optionValue', (opt.getAttribute('value') !== null ? opt.getAttribute('value') : (this.options.fallBackToOptionText ? opt.get('text') : '')));
+                });
             }
 
-            //set class
+            //set classes
             if (opt.get('tag') == 'optgroup') {
                 li.addClass(this.options.optgroupClass);
             }
             else if (optgroupChild) {
                 li.addClass(this.options.optgroupChildClass);
             }
+            
+            if(opt.get('disabled') || optgroupDisabled){
+                li.addClass(this.options.disabledClass);    
+            }
 
             //add it to the list
             li.inject(this.ul);
 
             //is it the selected item?
-            if (opt.get('tag') == 'option' && i == element.selectedIndex) {
+            if (opt.get('tag') == 'option' && i == element.selectedIndex && !opt.get('disabled') && !optgroupDisabled) {
                 this.selectedListItem = li;
             }
         }.bind(this);
@@ -294,14 +311,19 @@ var styledSelectList = new Class({
             createItem(opt, i);
 
             if (opt.get('tag') == 'optgroup') {
-                opt.getChildren('option').each(function(opt) {
-                    createItem(opt, i++, true);
+                opt.getChildren('option').each(function(el) {
+                    createItem(el, i++, true, opt.get('disabled'));
                 });
             }
             else {
                 i++;
             }
         }, this);
+
+        //if there is no selected item, use the first one. just to be sure
+        if(!this.selectedListItem){
+            this.selectedListItem = this.ul.getChildren('li:not(.' + this.options.optgroupClass + '):not(.' + this.options.disabledClass + ')')[0];
+        }
 
         //mark selected item
         this.selectedListItem.addClass('selected');
@@ -349,6 +371,10 @@ var styledSelectList = new Class({
     },
 
     selectItem: function(item, dontCloseList) {
+        if(item.hasClass(this.options.optgroupClass) || item.hasClass(this.options.disabledClass)){
+            return false;   
+        }
+        
         if (this.selectedOptionValueElement.get('value') != item.retrieve('optionValue')) {
             this.selectedOptionTextElement.set('html', item.get('html'));
             this.selectedOptionValueElement.set('value', item.retrieve('optionValue')).fireEvent('change');
@@ -372,14 +398,14 @@ var styledSelectList = new Class({
     },
 
     selectPreviousItem: function() {
-        var previous = this.selectedListItem.getPrevious('li:not(.' + this.options.optgroupClass + ')');
+        var previous = this.selectedListItem.getPrevious('li:not(.' + this.options.optgroupClass + '):not(.' + this.options.disabledClass + ')');
         if (previous) {
             this.selectItem(previous, true);
         }
     },
 
     selectNextItem: function() {
-        var next = this.selectedListItem.getNext('li:not(.' + this.options.optgroupClass + ')');
+        var next = this.selectedListItem.getNext('li:not(.' + this.options.optgroupClass + '):not(.' + this.options.disabledClass + ')');
         if (next) {
             this.selectItem(next, true);
         }
@@ -399,7 +425,7 @@ var styledSelectList = new Class({
                 //scroll down
                 this.ul.scrollTo(currentScroll.x, position.y + itemSize.y + currentScroll.y - ulSize.y);
             }
-            //notice: there is a 1px-calculation-error that seems co come from the browser, dont know (and cant help it)
+            //notice: there sometimes is a 1px-calculation-error that seems to come from the browser, dont know (and cant help it)
         }
         this.preventItemFocus = false;
     },

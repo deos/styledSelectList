@@ -83,3 +83,12 @@ body {
 .styledSelectList .styledSelectGrouped {
 	padding-left: 15px;    
 }
+
+.styledSelectList .styledSelectDisabled {
+	color: #AAA;
+}
+
+.styledSelectList .styledSelectDisabled:hover {
+	background-color: #FFF;
+	cursor: default;
+}

@@ -1,3 +1,24 @@
+/**
+@name:        styledSelectList
+@description: A mootools class for a "fake" (html) select list, created from a normal select element
+@author:      deos (deos.dev@gmail.com)
+@version:     0.8
+@license:     MIT
+
+Options:
+    wrapperClass           CSS class for wrapper div
+    hideOnMouseleave       If true, list hides when mouse leaves it (default: false)
+    hideOnMouseleaveDelay  Delay for mouse leave auto-hide in ms, is less annoying, 0 is instant-hide (default: 500)
+    resizeOnWindowResize   If true, list gets resized on window resize, usefull if wrapper has no fixed with (default: false),
+    smoothAnimation        If true, fade effects will be used (default: false)
+    animationOptions       If smoothAnimation is true, animation options can be set here (its used as el.set('tween', options) so give it a options object),
+    showListOnKeydown      If true, the list will get shown when keys are used while the list is in focus (for keyboard navigation) (default: true)
+    showListOnFocus        If true, the list will get shown when it gets focused (default: true)
+
+Events:
+    optionSelected       Gets fired when a item gets selected
+**/
+
 var styledSelectList = new Class({
     Implements: [Options, Events],
     
@@ -6,13 +27,13 @@ var styledSelectList = new Class({
         onOptionSelected: function(selectedItem)
         */
         'wrapperClass': 'styledSelectList',
-        'hideListAfter': 600,
-        'resizeOnWindowResize': true,
+        'hideOnMouseleave': false,
+        'hideOnMouseleaveDelay': 500,
+        'resizeOnWindowResize': false,
         'smoothAnimation': false,
         'animationOptions': null,
         'showListOnKeydown': true,
-        'showListOnFocus': true,
-        'hideOnMouseout': false
+        'showListOnFocus': true
     },
     
     initialize: function(elementId, options){
@@ -130,14 +151,14 @@ var styledSelectList = new Class({
             'blur': function(){
                 this.wrapper.removeClass('focused');
 
-                //hide list on blur, but do it delayed in any case so clicks dont get into nowhere
+                //hide list on blur, but do it delayed so clicks dont get into nowhere
                 clearTimeout(hideTimeout);
-                hideTimeout = (function(){ this.hideOptionList(); }).delay(Math.max(100, this.options.hideListAfter || 100), this);
+                hideTimeout = (function(){ this.hideOptionList(); }).delay(100, this);
             }.bind(this)
         });
         
         //hide list after a while when leaving it
-        if(this.options.hideListAfter>=0 && this.options.hideOnMouseout){
+        if(this.options.hideOnMouseleave && this.options.hideOnMouseleaveDelay>=0){
             var hideTimeout = null;
             this.wrapper.addEvents({
                 'mouseenter': function(){
@@ -145,11 +166,9 @@ var styledSelectList = new Class({
                 }.bind(this),
                 'mouseleave': function(){
                     clearTimeout(hideTimeout);
-                    if(this.ul.getStyle('display')!='none'){
-                        hideTimeout = (function(){
-                            this.hideOptionList();  
-                        }).delay(this.options.hideListAfter, this);
-                    }
+                    hideTimeout = (function(){
+                        this.hideOptionList();  
+                    }).delay(this.options.hideOnMouseleaveDelay, this);
                 }.bind(this)
             });
         }

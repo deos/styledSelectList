@@ -15,7 +15,10 @@
 			$$('select').each(function(el){
 				//el.addEvent('change', function(){ console.log(this.get('value')); });
 				new styledSelectList(el, {
-					'resizeOnWindowResize': false
+					'resizeOnWindowResize': false,
+					'smoothAnimation': true,
+					'hideListAfter': 100,
+					'animationOptions': { 'duration': 300 }
 				});
 			});
 		});
@@ -29,10 +32,12 @@
 			<option>please select</option>
 			<option value="1">aaa</option>
 			<option value="2">bbb</option>
-			<option value="3">ccc</option>
+			<option value="3" selected>ccc</option>
 			<option value="4">ddd</option>
 			<option value="5">eee</option>
 		</select>
+		
+		<input type="text" value="bla">
 	</p>
 </body>
 </html>

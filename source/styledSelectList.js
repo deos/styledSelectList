@@ -2,10 +2,17 @@ var styledSelectList = new Class({
     Implements: [Options, Events],
     
     options: {
+        /*
+        onOptionSelected: function(selectedItem)
+        */
         'wrapperClass': 'styledSelectList',
         'hideListAfter': 600,
         'resizeOnWindowResize': true,
-        'smoothAnimation': true
+        'smoothAnimation': false,
+        'animationOptions': null,
+        'showListOnKeydown': true,
+        'showListOnFocus': true,
+        'hideOnMouseout': false
     },
     
     initialize: function(elementId, options){
@@ -15,6 +22,9 @@ var styledSelectList = new Class({
         
         //fetch the selected element when starting
         var selectedItem = element.getElements('option')[element.selectedIndex];
+        
+        //the current selected listitem gets stored here
+        this.selectedListItem = null;
         
         //create a hidden input field for the current value
         //(events for the select gets redirected here, so 'change' events for the select still work)
@@ -38,10 +48,14 @@ var styledSelectList = new Class({
         }).inject(element, 'after');
         
         //element for showing the current status
-        this.selectedOptionTextElement = new Element('div', { html: selectedItem.get('html') }).inject(this.wrapper);
+        this.selectedOptionTextElement = new Element('div', {
+            'html': selectedItem.get('html'),
+            'tabindex': element.getAttribute('tabindex') || 100
+        }).inject(this.wrapper);
         
         //ul list as list for option elements
-        var ul = new Element('ul', {
+        this.ul = new Element('ul', {
+            'tabindex': -1,
             'styles': {
                 'position': 'absolute',
                 'z-index': 10000,
@@ -52,78 +66,169 @@ var styledSelectList = new Class({
         }).inject(this.wrapper);
         
         if(this.options.smoothAnimation){
-            ul.setStyle('display', 'block').fade('hide');
+            this.ul.setStyle('display', 'block').fade('hide');
+            
+            if(this.options.animationOptions){
+                this.ul.set('tween', this.options.animationOptions);    
+            }
         }
         
-        //set ul size (and refresh it on window resize if enabled)
-        var setMenuSize = function(){
-            var targetSize = this.selectedOptionTextElement.getSize().x;
-            targetSize += this.wrapper.getStyle('border-left-width').toInt() + this.wrapper.getStyle('border-right-width').toInt();
-            targetSize -= ul.getStyle('border-left-width').toInt() + ul.getStyle('border-right-width').toInt();
-            ul.setStyle('width', targetSize);
-        }.bind(this);
-        
+        //set ul size and refresh it on window resize (if enabled)
+        this.setListSize();
         if(this.options.resizeOnWindowResize){
-            window.addEvent('resize', setMenuSize);
+            window.addEvent('resize', this.setListSize.bind(this));
         }
-        
-        setMenuSize();
-        
+    
         //show and hide the list when clicking on the main element
-        this.selectedOptionTextElement.addEvent('click', function(e){
-            if(e){ e.preventDefault(); }
-            if(this.options.smoothAnimation){
-                ul.fade('toggle');
-            }
-            else{
-                ul.setStyle('display', (ul.getStyle('display')=='none' ? 'block' : 'none'));
-            }
-        }.bind(this));
+        this.selectedOptionTextElement.addEvents({
+            'click': function(e){
+                if(e){ e.preventDefault(); }
+                this.toggleOptionList();
+            }.bind(this),
+            'keydown': function(e){
+                if(e.key=='enter' || e.key=='space'){
+                    e.stop();
+                    this.toggleOptionList();
+                }
+                else{
+                    if(!['esc', 'delete', 'tab'].contains(e.key)){
+                        e.stop();
+                        if(this.options.showListOnKeydown){
+                            this.showOptionList();
+                        }
+                    }
+
+                    if(e.key=='up'){
+                        var previous = this.selectedListItem.getPrevious('li');
+                        if(previous){
+                            this.selectItem(previous, true);
+                        }
+                    }
+                    else if(e.key=='down'){
+                        var next = this.selectedListItem.getNext('li');
+                        if(next){
+                            this.selectItem(next, true);
+                        }                    
+                    }
+                    else if(!['left', 'right', 'esc', 'delete', 'tab'].contains(e.key)){
+                        //entry search on input follows here... someday...
+                    }
+                }
+            }.bind(this),
+            'focus': function(e){
+                this.wrapper.addClass('focused');
+
+                if(this.options.showListOnFocus){
+                    this.showOptionList();
+                    
+                    this.preventToggle = true;
+                    (function(){ this.preventToggle = false; }).delay(100, this);
+                    
+                    clearTimeout(hideTimeout);
+                }
+            }.bind(this),
+            'blur': function(){
+                this.wrapper.removeClass('focused');
+
+                //hide list on blur, but do it delayed in any case so clicks dont get into nowhere
+                clearTimeout(hideTimeout);
+                hideTimeout = (function(){ this.hideOptionList(); }).delay(Math.max(100, this.options.hideListAfter || 100), this);
+            }.bind(this)
+        });
         
         //hide list after a while when leaving it
-        if(this.options.hideListAfter){
+        if(this.options.hideListAfter>=0 && this.options.hideOnMouseout){
             var hideTimeout = null;
-            this.wrapper.addEvent('mouseenter', function(){
-                clearTimeout(hideTimeout);
-            }.bind(this));
-            this.wrapper.addEvent('mouseleave', function(){
-                clearTimeout(hideTimeout);
-                if(ul.getStyle('display')!='none'){
-                    hideTimeout = (function(){
-                        if(this.options.smoothAnimation){
-                            ul.fade('out');
-                        }
-                        else{
-                            ul.setStyle('display', 'none');
-                        }    
-                    }).delay(this.options.hideListAfter, this);
-                }
-            }.bind(this));
+            this.wrapper.addEvents({
+                'mouseenter': function(){
+                    clearTimeout(hideTimeout);
+                }.bind(this),
+                'mouseleave': function(){
+                    clearTimeout(hideTimeout);
+                    if(this.ul.getStyle('display')!='none'){
+                        hideTimeout = (function(){
+                            this.hideOptionList();  
+                        }).delay(this.options.hideListAfter, this);
+                    }
+                }.bind(this)
+            });
         }
         
         //create the option list
-        element.getChildren('option').each(function(opt){
-            new Element('li', { 'html': opt.get('html') })
-                .store('optionValue', opt.getAttribute('value') || '')
-                .addEvent('click', function(e){
-                    if(e){ e.preventDefault(); }
-                    
-                    if(self.selectedOptionValueElement.get('value')!=this.retrieve('optionValue')){
-                        self.selectedOptionTextElement.set('html', this.get('html'));
-                        self.selectedOptionValueElement.set('value', this.retrieve('optionValue')).fireEvent('change');
-                    }
-                    
-                    if(self.options.smoothAnimation){
-                        ul.fade('out');
-                    }
-                    else{
-                        ul.setStyle('display', 'none');
-                    }   
-                })
-                .inject(ul);
-        });
+        element.getChildren('option').each(function(opt, i){
+            var li = new Element('li', {
+                'html': opt.get('html'),
+                'events': {
+                    'click': function(e){
+                        if(e){ e.preventDefault(); }
+                        self.selectItem(this);
+                    }    
+                }
+            }).store('optionValue', opt.getAttribute('value') || '').inject(this.ul);
+
+            //is it the selected item?
+            if(i==element.selectedIndex){
+                this.selectedListItem = li;
+            }
+        }, this);
+
+        //mark selected item
+        this.selectedListItem.addClass('selected');
         
         //the old element is done for now, destroy it
         element.destroy();
-    }
+    },
+    
+    toggleOptionList: function(){
+        if(!this.preventToggle){
+            if(this.options.smoothAnimation){
+                 this.ul.fade('toggle');
+            }
+            else{
+                this.ul.setStyle('display', (this.ul.getStyle('display')=='none' ? 'block' : 'none'));
+            }
+        }
+    },
+    
+    showOptionList: function(){
+         if(this.options.smoothAnimation){
+             this.ul.fade('in');
+        }
+        else{
+            this.ul.setStyle('display', 'block');
+        }
+    },
+        
+    hideOptionList: function(){
+         if(this.options.smoothAnimation){
+             this.ul.fade('out');
+        }
+        else{
+            this.ul.setStyle('display', 'none');
+        }
+    },
+        
+    selectItem: function(item, dontCloseList){
+        if(this.selectedOptionValueElement.get('value')!=item.retrieve('optionValue')){
+            this.selectedOptionTextElement.set('html', item.get('html'));
+            this.selectedOptionValueElement.set('value', item.retrieve('optionValue')).fireEvent('change');
+            
+            this.selectedListItem.removeClass('selected');
+            this.selectedListItem = item;
+            this.selectedListItem.addClass('selected');
+            
+            this.fireEvent('optionSelected', [item]);
+        }
+        
+        if(!dontCloseList){
+            this.hideOptionList();
+        }
+    },
+        
+    setListSize: function(){
+        var targetSize = this.selectedOptionTextElement.getSize().x;
+        targetSize += this.wrapper.getStyle('border-left-width').toInt() + this.wrapper.getStyle('border-right-width').toInt();
+        targetSize -= this.ul.getStyle('border-left-width').toInt() + this.ul.getStyle('border-right-width').toInt();
+        this.ul.setStyle('width', targetSize);
+    }        
 });

@@ -7,6 +7,10 @@ body {
 	width: 200px;
 }
 
+.styledSelectList.focused {
+	border-style: dotted;    
+}
+
 .styledSelectList > div {
 	background-color: #F00;
 	cursor: pointer;
@@ -27,4 +31,8 @@ body {
 
 .styledSelectList > ul > li:hover {
 	background-color: rgba(200, 200, 200, 0.5);
+}
+
+.styledSelectList > ul > li.selected {
+	background-color: yellow;
 }

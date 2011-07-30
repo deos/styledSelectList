@@ -13,7 +13,7 @@
 	//<![CDATA[ 
 		window.addEvent('domready', function() {
 			$$('select').each(function(el){
-				el.addEvent('change', function(){ console.log(this.get('value')); });
+				//el.addEvent('change', function(){ console.log(this.get('value')); });
 				new styledSelectList(el);
 			});
 		});

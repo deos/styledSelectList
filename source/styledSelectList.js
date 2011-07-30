@@ -9,18 +9,22 @@
  wrapperClass             CSS class for wrapper div
  hideOnMouseleave         If true, list hides when mouse leaves it (default: false)
  hideOnMouseleaveDelay    Delay for mouse leave auto-hide in ms, is less annoying, 0 is instant-hide (default: 500)
- resizeOnWindowResize     If true, list gets resized on window resize, usefull if wrapper has no fixed with (default: false),
+ resizeOnWindowResize     If true, list gets resized on window resize, usefull if wrapper has no fixed with (default: false)
  smoothAnimation          If true, fade effects will be used (default: false)
- animationOptions         If smoothAnimation is true, animation options can be set here (its used as el.set('tween', options) so give it a options object),
+ animationOptions         If smoothAnimation is true, animation options can be set here (its used as el.set('tween', options) so give it a options object)
  showListOnKeydown        If true, the list will get shown when keys are used while the list is in focus (for keyboard navigation) (default: true)
  showListOnFocus          If true, the list will get shown when it gets focused (default: true)
  keepListOnSelect         If true, the list wont close if something is selected by mouseclick, otherwise the list will loose focus (default: true)
- showListOnHoverSelected  If true, the list will get shown when hovering over the element if it is selected,
+ showListOnHoverSelected  If true, the list will get shown when hovering over the element if it is selected
  scrollContainer          The container element to position the list within, to prevent overflow out of the page/container (default: window)
  shrinkListWidth          If this option is >0, the list width gets shrinked by the amounth of px, e.g. for placing it under rounded corners (default: 0)
+ fallBackToOptionText     If this option is true, the select will take the text of the option elements as value if they dont have a value attribute (default: true)
+ keepAttributes           An array of attributes that should be kept from the original select element and gets cloned onto the wrapper element
+ keepAttributes           An array of styles that should be kept from the original select element and gets cloned onto the wrapper element
+ keys                     Contains a object with keys to use for the tasks toggle, previous, next and ignore. each is a array of keys as string
  
  Events:
- optionSelected       Gets fired when a item gets selected
+ optionSelected           Gets fired when a item gets selected
  
  Notice:
  You better set tabindex for all inputs/selects in your form (including the styled ones) if you want good keyboard navigation
@@ -44,7 +48,16 @@ var styledSelectList = new Class({
         'keepListOnSelect': true,
         'showListOnHoverSelected': true,
         'scrollContainer': window,
-        'shrinkListWidth': 0
+        'shrinkListWidth': 0,
+        'fallBackToOptionText': true,
+        'keepAttributes': ['class'],
+        'keepStyles': [],
+        'keys': {
+            toggle: ['space', 'enter'],
+            previous: ['up'],
+            next: ['down'],
+            ignore: ['esc', 'delete', 'tab']
+        }
     },
 
     initialize: function(elementId, options) {
@@ -62,14 +75,6 @@ var styledSelectList = new Class({
         var hideTimeout = null,
             focusTimeout = null;
 
-        //keysets
-        var keys = {
-            toggle: ['space', 'enter'],
-            previous: ['up'],
-            next: ['down'],
-            ignore: ['esc', 'delete', 'tab']
-        };
-
         //create a hidden input field for the current value
         //(events for the select gets redirected here, so 'change' events for the select still work)
         this.selectedOptionValueElement = new Element('input', {
@@ -84,19 +89,19 @@ var styledSelectList = new Class({
         }).cloneEvents(element).inject(element, 'after');
 
         //create the main wrapper element
-        this.wrapper = new Element('div', {
-            'class': this.options.wrapperClass,
-            'styles': {
-                'display': 'inline-block'
-            }
-        }).inject(element, 'after');
+        this.wrapper = new Element('div')
+            .set(element.get(this.options.keepAttributes))
+            .setStyles(element.getStyles(this.options.keepStyles))
+            .addClass(this.options.wrapperClass)
+            .setStyle('display', 'inline-block')
+            .inject(element, 'after');
 
         //element for showing the current status
         this.selectedOptionTextElement = new Element('div', {
             'html': selectedItem.get('html'),
             'tabindex': element.getAttribute('tabindex') || 100
         }).inject(this.wrapper);
-
+        
         //ul list as list for option elements
         this.ul = new Element('ul', {
             'tabindex': -1,
@@ -142,7 +147,7 @@ var styledSelectList = new Class({
                 this.toggleOptionList();
             }.bind(this),
             'keydown': function(e) {
-                if (!keys.ignore.contains(e.key)) {
+                if (!this.options.keys.ignore.contains(e.key) && !e.control && !e.meta) {
                     e.stop();
             
                     //workaround for a IE / webkit bug, arrow keys dont fire keypress events...
@@ -150,17 +155,17 @@ var styledSelectList = new Class({
                         this.fireEvent('keypress', [e, true]);
                     }
                 }
-            },
+            }.bind(this),
             'keyup': function(e) {
-                if (!keys.ignore.contains(e.key)) {
+                if (!this.options.keys.ignore.contains(e.key) && !e.control && !e.meta) {
                     e.stop();
                 }
-            },
+            }.bind(this),
             'keypress': function(e, keyDownEvent) {
-                if (!keys.ignore.contains(e.key)) {
+                if (!this.options.keys.ignore.contains(e.key) && !e.control && !e.meta) {
                     e.stop();
 
-                    if (keys.toggle.contains(e.key)) {
+                    if (this.options.keys.toggle.contains(e.key)) {
                         this.toggleOptionList();
                     }
                     else {
@@ -169,14 +174,14 @@ var styledSelectList = new Class({
                             this.showOptionList();
                         }
 
-                        if (keys.previous.contains(e.key)) {
+                        if (this.options.keys.previous.contains(e.key)) {
                             this.selectPreviousItem();
                         }
-                        else if (keys.next.contains(e.key)) {
+                        else if (this.options.keys.next.contains(e.key)) {
                             this.selectNextItem();
                         }
                         else if(!keyDownEvent) {
-                            //entry search/filtering on input follows here... someday...
+                            //entry search/filtering on input follows here... someday... maybe...
                             var key = ((/^\w$/.test(e.key) && e.shift) ? e.key.toUpperCase() : e.key);
                             //alert(key);
                         }
@@ -246,7 +251,7 @@ var styledSelectList = new Class({
                         e.stop();
                     }
                 }
-            }).store('optionValue', opt.getAttribute('value') || '').inject(this.ul);
+            }).store('optionValue', (opt.getAttribute('value')!==null ? opt.getAttribute('value') : (this.options.fallBackToOptionText ? opt.get('text') : ''))).inject(this.ul);
 
             //is it the selected item?
             if (i == element.selectedIndex) {
@@ -386,5 +391,9 @@ var styledSelectList = new Class({
         targetSize -= this.ul.getStyle('border-left-width').toInt() + this.ul.getStyle('border-right-width').toInt();
         targetSize -= this.options.shrinkListWidth;
         this.ul.setStyle('width', targetSize);
+    },
+        
+    toElement: function(){
+        return this.wrapper;   
     }
 });

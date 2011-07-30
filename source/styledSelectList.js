@@ -17,6 +17,8 @@
  keepListOnSelect         If true, the list wont close if something is selected by mouseclick, otherwise the list will loose focus (default: true)
  keyNavigationStartDelay  Start delay for keyboard up/down navigation in ms, lower value is faster start (default: 200)
  keyNavigationDelay       Delay for keyboard up/down navigation for goint through in ms, lower value items is faster moving (default: 100)
+ showListOnHoverSelected  If true, the list will get shown when hovering over the element if it is selected,
+ scrollContainer          The container element to position the list within, to prevent overflow out of the page/container (default: window)
  
  Events:
  optionSelected       Gets fired when a item gets selected
@@ -42,7 +44,9 @@ var styledSelectList = new Class({
         'showListOnFocus': true,
         'keepListOnSelect': true,
         'keyNavigationStartDelay': 200,
-        'keyNavigationDelay': 100
+        'keyNavigationDelay': 100,
+        'showListOnHoverSelected': true,
+        'scrollContainer': window
     },
 
     initialize: function(elementId, options) {
@@ -55,6 +59,10 @@ var styledSelectList = new Class({
 
         //the current selected listitem gets stored here
         this.selectedListItem = null;
+
+        //init timer
+        var hideTimeout = null,
+            keyTimeout = null;
 
         //create a hidden input field for the current value
         //(events for the select gets redirected here, so 'change' events for the select still work)
@@ -92,6 +100,15 @@ var styledSelectList = new Class({
                 'display': 'none',
                 'margin-left': (-1 * this.wrapper.getStyle('border-left-width').toInt()),
                 'margin-top': this.wrapper.getStyle('border-bottom-width').toInt()
+            },
+            'events': {
+                'focus': function() {
+                    clearTimeout(hideTimeout);
+                },
+                'mouseup': function() {
+                    this.preventItemFocus = true;
+                    this.selectedOptionTextElement.focus();
+                }.bind(this)
             }
         }).inject(this.wrapper);
 
@@ -110,7 +127,6 @@ var styledSelectList = new Class({
         }
 
         //show and hide the list when clicking on the main element and handle keyboard
-        var keyTimeout = null;
         this.selectedOptionTextElement.addEvents({
             'click': function(e) {
                 if (e) {
@@ -119,7 +135,7 @@ var styledSelectList = new Class({
                 this.toggleOptionList();
             }.bind(this),
             'keydown': function(e) {
-                if (e.key == 'enter' || e.key == 'space') {
+                if (['enter', 'space'].contains(e.key)) {
                     e.stop();
                     this.toggleOptionList();
                 }
@@ -157,6 +173,11 @@ var styledSelectList = new Class({
             'keyup': function() {
                 clearTimeout(keyTimeout);
             },
+            'keypress': function(e){
+                if(['up', 'down'].contains(e.key)){
+                    e.stop();  
+                }  
+            },
             'focus': function(e) {
                 this.wrapper.addClass('focused');
 
@@ -179,17 +200,20 @@ var styledSelectList = new Class({
                 hideTimeout = (function() {
                     this.hideOptionList();
                 }).delay(100, this);
-                
+
                 clearTimeout(keyTimeout);
             }.bind(this)
         });
 
         //hide list after a while when leaving it
         if (this.options.hideOnMouseleave && this.options.hideOnMouseleaveDelay >= 0) {
-            var hideTimeout = null;
             this.wrapper.addEvents({
                 'mouseenter': function() {
                     clearTimeout(hideTimeout);
+
+                    if (this.options.showListOnHoverSelected && this.wrapper.hasClass('focused')) {
+                        this.showOptionList();
+                    }
                 }.bind(this),
                 'mouseleave': function() {
                     clearTimeout(hideTimeout);
@@ -210,6 +234,9 @@ var styledSelectList = new Class({
                             e.preventDefault();
                         }
                         self.selectItem(this);
+                    },
+                    'mouseup': function(e) {
+                        e.stop();
                     }
                 }
             }).store('optionValue', opt.getAttribute('value') || '').inject(this.ul);
@@ -223,6 +250,9 @@ var styledSelectList = new Class({
         //mark selected item
         this.selectedListItem.addClass('selected');
 
+        //handle list position on body scroll
+        this.options.scrollContainer.addEvent('scroll', this.positionList.bind(this));
+
         //the old element is done for, now destroy it
         element.destroy();
     },
@@ -235,7 +265,8 @@ var styledSelectList = new Class({
             else {
                 this.ul.setStyle('display', (this.ul.getStyle('display') == 'none' ? 'block' : 'none'));
             }
-            
+
+            this.positionList();
             this.focusCurrentItem();
         }
     },
@@ -247,7 +278,8 @@ var styledSelectList = new Class({
         else {
             this.ul.setStyle('display', 'block');
         }
-        
+
+        this.positionList();
         this.focusCurrentItem();
     },
 
@@ -299,7 +331,7 @@ var styledSelectList = new Class({
 
     focusCurrentItem: function() {
         var position = this.selectedListItem.getPosition(this.ul);
-        if (position.x === 0) {
+        if (position.x === 0 && !this.preventItemFocus) {
             var currentScroll = this.ul.getScroll(),
                 ulSize = this.ul.getSize(),
                 itemSize = this.selectedListItem.getSize();
@@ -312,6 +344,32 @@ var styledSelectList = new Class({
                 this.ul.scrollTo(currentScroll.x, position.y + itemSize.y + currentScroll.y - ulSize.y);
             }
             //notice: there is a 1px-calculation-error that seems co come from the browser, dont know (and cant help it)
+        }
+        this.preventItemFocus = false;
+    },
+
+    positionList: function() {
+        var listSize = this.ul.getSize();
+
+        if (listSize.y > 0) {
+            this.ul.setStyles({
+                'margin-top': this.wrapper.getStyle('border-bottom-width').toInt()
+            });
+            
+            var container = (this.options.scrollContainer == window ? document.body : this.options.scrollContainer),
+                listPosition = this.ul.getPosition(container),
+                containerSize = container.getSize(),
+                containerScroll = container.getScroll();
+
+            //dont let the list stick out of the container!
+            if (listPosition.y + listSize.y > containerSize.y + containerScroll.y) {
+                this.ul.setStyles({
+                    'margin-top': (-1 * listSize.y - this.wrapper.getSize().y + 1)
+                }).addClass('upperPosition');
+            }
+            else {
+                this.ul.removeClass('upperPosition');
+            }
         }
     },
 

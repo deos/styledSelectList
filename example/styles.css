@@ -5,25 +5,47 @@ body {
 .styledSelectList {
 	border: 1px solid black;
 	width: 200px;
+	-moz-border-radius: 10px;
 }
 
 .styledSelectList.focused {
-	border-style: dotted;    
+	-moz-box-shadow: 0px 0px 10px #000;
 }
 
 .styledSelectList > div {
-	background-color: #F00;
+	background-color: #DDD;
 	cursor: pointer;
-	padding: 1px 5px;
+	padding: 1px 8px;
 	overflow: hidden;
+	-moz-border-radius: 10px;
+	outline-style: none;
+	position: relative;
+}
+
+.styledSelectList > div:after {
+	content: '';
+	width: 0px;
+	height: 0px;
+	border: 7px solid transparent;
+	border-top-color: #000;
+	position: absolute;
+	top: 7px;
+	right: 8px;
 }
 
 .styledSelectList > ul {
 	border: 1px solid black;
-	border-top-style: none;
+	/*border-top-style: none;*/
 	max-height: 200px;
 	overflow: auto;
 	background-color: #FFF;
+	outline-style: none;
+	-moz-box-shadow: 0px 0px 5px #000;
+}
+
+.styledSelectList > ul.upperPosition {
+	/*border-top-style: solid;
+	border-bottom-style: none;*/   
 }
 
 .styledSelectList > ul > li {

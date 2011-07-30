@@ -15,18 +15,21 @@ body {
 	background-color: #F00;
 	cursor: pointer;
 	padding: 1px 5px;
+	overflow: hidden;
 }
 
 .styledSelectList > ul {
 	border: 1px solid black;
 	border-top-style: none;
-	max-height: 100px;
+	max-height: 200px;
 	overflow: auto;
+	background-color: #FFF;
 }
 
 .styledSelectList > ul > li {
 	cursor: pointer;
 	padding: 1px 5px;
+	overflow: hidden;
 }
 
 .styledSelectList > ul > li:hover {

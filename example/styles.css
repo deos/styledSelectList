@@ -5,3 +5,18 @@ body {
 .styledSelectList {
 	border: 1px solid black;   
 }
+
+.styledSelectList > div {
+	background-color: #F00;   
+}
+
+.styledSelectList > ul {
+}
+
+.styledSelectList > ul > li {
+	cursor: pointer;
+}
+
+.styledSelectList > ul > li:hover {
+	background-color: rgba(200, 200, 200, 0.5);
+}

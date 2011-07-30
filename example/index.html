@@ -13,14 +13,15 @@
 	//<![CDATA[ 
 		window.addEvent('domready', function() {
 			$$('select').each(function(el){
-				new styledSelectList(el); 
+				el.addEvent('change', function(){ console.log(this.get('value')); });
+				new styledSelectList(el);
 			});
 		});
 	//]]> 
 	</script>
 </head>
 <body>
-	<select>
+	<select class="important">
 		<option>select</option>
 		<option value="1">aaa</option>
 		<option value="2">bbb</option>

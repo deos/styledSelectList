@@ -3,7 +3,7 @@ var styledSelectList = new Class({
     
     options: {
         'wrapperClass': 'styledSelectList',
-        'hideListAfter': 1000,
+        'hideListAfter': 600,
         'resizeOnWindowResize': true,
         'smoothAnimation': true
     },
@@ -20,6 +20,8 @@ var styledSelectList = new Class({
         //(events for the select gets redirected here, so 'change' events for the select still work)
         this.selectedOptionValueElement = new Element('input', {
             'typ': 'text',
+            'name': element.get('name'),
+            'id': element.get('id'),
             'value': selectedItem.getAttribute('value'),
             'class': element.get('class'),
             'styles': {
@@ -30,6 +32,9 @@ var styledSelectList = new Class({
         //create the main wrapper element
         this.wrapper = new Element('div', {
             'class': this.options.wrapperClass,
+            'styles': {
+                'display': 'inline-block'
+            }
         }).inject(element, 'after');
         
         //element for showing the current status

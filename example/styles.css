@@ -4,20 +4,25 @@ body {
 
 .styledSelectList {
 	border: 1px solid black;
+	width: 200px;
 }
 
 .styledSelectList > div {
 	background-color: #F00;
 	cursor: pointer;
+	padding: 1px 5px;
 }
 
 .styledSelectList > ul {
 	border: 1px solid black;
 	border-top-style: none;
+	max-height: 100px;
+	overflow: auto;
 }
 
 .styledSelectList > ul > li {
 	cursor: pointer;
+	padding: 1px 5px;
 }
 
 .styledSelectList > ul > li:hover {

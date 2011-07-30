@@ -14,18 +14,25 @@
 		window.addEvent('domready', function() {
 			$$('select').each(function(el){
 				//el.addEvent('change', function(){ console.log(this.get('value')); });
-				new styledSelectList(el);
+				new styledSelectList(el, {
+					'resizeOnWindowResize': false
+				});
 			});
 		});
 	//]]> 
 	</script>
 </head>
 <body>
-	<select class="important">
-		<option>select</option>
-		<option value="1">aaa</option>
-		<option value="2">bbb</option>
-		<option value="3">ccc</option>
-	</select>
+	<p>
+		Select something:
+		<select class="important">
+			<option>please select</option>
+			<option value="1">aaa</option>
+			<option value="2">bbb</option>
+			<option value="3">ccc</option>
+			<option value="4">ddd</option>
+			<option value="5">eee</option>
+		</select>
+	</p>
 </body>
 </html>

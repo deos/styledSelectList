@@ -15,10 +15,9 @@
  showListOnKeydown        If true, the list will get shown when keys are used while the list is in focus (for keyboard navigation) (default: true)
  showListOnFocus          If true, the list will get shown when it gets focused (default: true)
  keepListOnSelect         If true, the list wont close if something is selected by mouseclick, otherwise the list will loose focus (default: true)
- keyNavigationStartDelay  Start delay for keyboard up/down navigation in ms, lower value is faster start (default: 200)
- keyNavigationDelay       Delay for keyboard up/down navigation for goint through in ms, lower value items is faster moving (default: 100)
  showListOnHoverSelected  If true, the list will get shown when hovering over the element if it is selected,
  scrollContainer          The container element to position the list within, to prevent overflow out of the page/container (default: window)
+ shrinkListWidth          If this option is >0, the list width gets shrinked by the amounth of px, e.g. for placing it under rounded corners (default: 0)
  
  Events:
  optionSelected       Gets fired when a item gets selected
@@ -43,10 +42,9 @@ var styledSelectList = new Class({
         'showListOnKeydown': true,
         'showListOnFocus': true,
         'keepListOnSelect': true,
-        'keyNavigationStartDelay': 200,
-        'keyNavigationDelay': 100,
         'showListOnHoverSelected': true,
-        'scrollContainer': window
+        'scrollContainer': window,
+        'shrinkListWidth': 0
     },
 
     initialize: function(elementId, options) {
@@ -62,7 +60,15 @@ var styledSelectList = new Class({
 
         //init timer
         var hideTimeout = null,
-            keyTimeout = null;
+            focusTimeout = null;
+
+        //keysets
+        var keys = {
+            toggle: ['space', 'enter'],
+            previous: ['up'],
+            next: ['down'],
+            ignore: ['esc', 'delete', 'tab']
+        };
 
         //create a hidden input field for the current value
         //(events for the select gets redirected here, so 'change' events for the select still work)
@@ -98,11 +104,12 @@ var styledSelectList = new Class({
                 'position': 'absolute',
                 'z-index': 10000,
                 'display': 'none',
-                'margin-left': (-1 * this.wrapper.getStyle('border-left-width').toInt()),
+                'margin-left': (-1 * this.wrapper.getStyle('border-left-width').toInt() + (this.options.shrinkListWidth / 2).toInt()),
                 'margin-top': this.wrapper.getStyle('border-bottom-width').toInt()
             },
             'events': {
                 'focus': function() {
+                    clearTimeout(focusTimeout);
                     clearTimeout(hideTimeout);
                 },
                 'mouseup': function() {
@@ -135,50 +142,49 @@ var styledSelectList = new Class({
                 this.toggleOptionList();
             }.bind(this),
             'keydown': function(e) {
-                if (['enter', 'space'].contains(e.key)) {
+                if (!keys.ignore.contains(e.key)) {
                     e.stop();
-                    this.toggleOptionList();
+            
+                    //workaround for a IE / webkit bug, arrow keys dont fire keypress events...
+                    if(Browser.ie || Browser.safari || Browser.chrome) {
+                        this.fireEvent('keypress', [e, true]);
+                    }
                 }
-                else {
-                    if (!['esc', 'delete', 'tab'].contains(e.key)) {
-                        e.stop();
+            },
+            'keyup': function(e) {
+                if (!keys.ignore.contains(e.key)) {
+                    e.stop();
+                }
+            },
+            'keypress': function(e, keyDownEvent) {
+                if (!keys.ignore.contains(e.key)) {
+                    e.stop();
+
+                    if (keys.toggle.contains(e.key)) {
+                        this.toggleOptionList();
+                    }
+                    else {
                         if (this.options.showListOnKeydown) {
+                            clearTimeout(hideTimeout);
                             this.showOptionList();
                         }
-                    }
 
-                    if (e.key == 'up') {
-                        this.selectPreviousItem();
-
-                        //if you keep on pushing the key, continue going up
-                        clearTimeout(keyTimeout);
-                        keyTimeout = function() {
-                            keyTimeout = this.selectPreviousItem.periodical(this.options.keyNavigationDelay, this);
-                        }.delay(this.options.keyNavigationStartDelay, this);
-                    }
-                    else if (e.key == 'down') {
-                        this.selectNextItem();
-
-                        //if you keep on pushing the key, continue going down
-                        clearTimeout(keyTimeout);
-                        keyTimeout = function() {
-                            keyTimeout = this.selectNextItem.periodical(this.options.keyNavigationDelay, this);
-                        }.delay(this.options.keyNavigationStartDelay, this);
-                    }
-                    else if (!['left', 'right', 'esc', 'delete', 'tab'].contains(e.key)) {
-                        //entry search on input follows here... someday...
+                        if (keys.previous.contains(e.key)) {
+                            this.selectPreviousItem();
+                        }
+                        else if (keys.next.contains(e.key)) {
+                            this.selectNextItem();
+                        }
+                        else if(!keyDownEvent) {
+                            //entry search/filtering on input follows here... someday...
+                            var key = ((/^\w$/.test(e.key) && e.shift) ? e.key.toUpperCase() : e.key);
+                            //alert(key);
+                        }
                     }
                 }
             }.bind(this),
-            'keyup': function() {
-                clearTimeout(keyTimeout);
-            },
-            'keypress': function(e){
-                if(['up', 'down'].contains(e.key)){
-                    e.stop();  
-                }  
-            },
             'focus': function(e) {
+                clearTimeout(focusTimeout);
                 this.wrapper.addClass('focused');
 
                 if (this.options.showListOnFocus) {
@@ -193,15 +199,16 @@ var styledSelectList = new Class({
                 }
             }.bind(this),
             'blur': function() {
-                this.wrapper.removeClass('focused');
+                //delaying the class removal so it gets less strange styling effects
+                focusTimeout = (function() {
+                    this.wrapper.removeClass('focused');
+                }).delay(100, this);
 
                 //hide list on blur, but do it delayed so clicks dont get into nowhere
                 clearTimeout(hideTimeout);
                 hideTimeout = (function() {
                     this.hideOptionList();
                 }).delay(100, this);
-
-                clearTimeout(keyTimeout);
             }.bind(this)
         });
 
@@ -355,7 +362,7 @@ var styledSelectList = new Class({
             this.ul.setStyles({
                 'margin-top': this.wrapper.getStyle('border-bottom-width').toInt()
             });
-            
+
             var container = (this.options.scrollContainer == window ? document.body : this.options.scrollContainer),
                 listPosition = this.ul.getPosition(container),
                 containerSize = container.getSize(),
@@ -377,6 +384,7 @@ var styledSelectList = new Class({
         var targetSize = this.selectedOptionTextElement.getSize().x;
         targetSize += this.wrapper.getStyle('border-left-width').toInt() + this.wrapper.getStyle('border-right-width').toInt();
         targetSize -= this.ul.getStyle('border-left-width').toInt() + this.ul.getStyle('border-right-width').toInt();
+        targetSize -= this.options.shrinkListWidth;
         this.ul.setStyle('width', targetSize);
     }
 });

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<title>styledSelectList example</title>
+	<script type='text/javascript' src='https://ajax.googleapis.com/ajax/libs/mootools/1.3.2/mootools-yui-compressed.js'></script>
+	<script type='text/javascript' src='../source/styledSelectList.js'></script>
+	
+	<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.3.0/build/cssreset/reset-min.css">
+	<link rel="stylesheet" type="text/css" href="styles.css">
+	
+	<script type='text/javascript'>
+	//<![CDATA[ 
+		window.addEvent('domready', function() {
+			$$('select').each(function(el){
+				new styledSelectList(el); 
+			});
+		});
+	//]]> 
+	</script>
+</head>
+<body>
+	<select>
+		<option>select</option>
+		<option value="1">aaa</option>
+		<option value="2">bbb</option>
+		<option value="3">ccc</option>
+	</select>
+</body>
+</html>

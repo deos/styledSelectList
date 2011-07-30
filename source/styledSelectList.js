@@ -7,6 +7,8 @@
  
  Options:
  wrapperClass             CSS class for wrapper div
+ optgroupClass            CSS class for optgroup elements
+ optgroupChildClass       CSS class for the option elements within optgroup elements
  hideOnMouseleave         If true, list hides when mouse leaves it (default: false)
  hideOnMouseleaveDelay    Delay for mouse leave auto-hide in ms, is less annoying, 0 is instant-hide (default: 500)
  resizeOnWindowResize     If true, list gets resized on window resize, usefull if wrapper has no fixed with (default: false)
@@ -38,6 +40,8 @@ var styledSelectList = new Class({
         onOptionSelected: function(selectedItem)
         */
         'wrapperClass': 'styledSelectList',
+        'optgroupClass': 'styledSelectOptGroup',
+        'optgroupChildClass': 'styledSelectGrouped',
         'hideOnMouseleave': false,
         'hideOnMouseleaveDelay': 500,
         'resizeOnWindowResize': false,
@@ -101,7 +105,7 @@ var styledSelectList = new Class({
             'html': selectedItem.get('html'),
             'tabindex': element.getAttribute('tabindex') || 100
         }).inject(this.wrapper);
-        
+
         //ul list as list for option elements
         this.ul = new Element('ul', {
             'tabindex': -1,
@@ -149,9 +153,9 @@ var styledSelectList = new Class({
             'keydown': function(e) {
                 if (!this.options.keys.ignore.contains(e.key) && !e.control && !e.meta) {
                     e.stop();
-            
+
                     //workaround for a IE / webkit bug, arrow keys dont fire keypress events...
-                    if(Browser.ie || Browser.safari || Browser.chrome) {
+                    if (Browser.ie || Browser.safari || Browser.chrome) {
                         this.fireEvent('keypress', [e, true]);
                     }
                 }
@@ -180,7 +184,7 @@ var styledSelectList = new Class({
                         else if (this.options.keys.next.contains(e.key)) {
                             this.selectNextItem();
                         }
-                        else if(!keyDownEvent) {
+                        else if (!keyDownEvent) {
                             //entry search/filtering on input follows here... someday... maybe...
                             var key = ((/^\w$/.test(e.key) && e.shift) ? e.key.toUpperCase() : e.key);
                             //alert(key);
@@ -236,11 +240,25 @@ var styledSelectList = new Class({
             });
         }
 
-        //create the option list
-        element.getChildren('option').each(function(opt, i) {
-            var li = new Element('li', {
-                'html': opt.get('html'),
-                'events': {
+        //helper function for creating the list elements
+        var createItem = function(opt, i, optgroupChild) {
+            var li = new Element('li');
+
+            //set text, events and value
+            if (opt.get('tag') == 'optgroup') {
+                li.set('html', opt.get('label')).addEvents({
+                    'click': function(e) {
+                        if (e) {
+                            e.preventDefault();
+                        }
+                    },
+                    'mouseup': function(e) {
+                        e.stop();
+                    }
+                });
+            }
+            else {
+                li.set('html', opt.get('text')).addEvents({
                     'click': function(e) {
                         if (e) {
                             e.preventDefault();
@@ -250,12 +268,38 @@ var styledSelectList = new Class({
                     'mouseup': function(e) {
                         e.stop();
                     }
-                }
-            }).store('optionValue', (opt.getAttribute('value')!==null ? opt.getAttribute('value') : (this.options.fallBackToOptionText ? opt.get('text') : ''))).inject(this.ul);
+                }).store('optionValue', (opt.getAttribute('value') !== null ? opt.getAttribute('value') : (this.options.fallBackToOptionText ? opt.get('text') : '')));
+            }
+
+            //set class
+            if (opt.get('tag') == 'optgroup') {
+                li.addClass(this.options.optgroupClass);
+            }
+            else if (optgroupChild) {
+                li.addClass(this.options.optgroupChildClass);
+            }
+
+            //add it to the list
+            li.inject(this.ul);
 
             //is it the selected item?
-            if (i == element.selectedIndex) {
+            if (opt.get('tag') == 'option' && i == element.selectedIndex) {
                 this.selectedListItem = li;
+            }
+        }.bind(this);
+
+        //create the option list
+        var i = 0;
+        element.getChildren('option, optgroup').each(function(opt) {
+            createItem(opt, i);
+
+            if (opt.get('tag') == 'optgroup') {
+                opt.getChildren('option').each(function(opt) {
+                    createItem(opt, i++, true);
+                });
+            }
+            else {
+                i++;
             }
         }, this);
 
@@ -328,14 +372,14 @@ var styledSelectList = new Class({
     },
 
     selectPreviousItem: function() {
-        var previous = this.selectedListItem.getPrevious('li');
+        var previous = this.selectedListItem.getPrevious('li:not(.' + this.options.optgroupClass + ')');
         if (previous) {
             this.selectItem(previous, true);
         }
     },
 
     selectNextItem: function() {
-        var next = this.selectedListItem.getNext('li');
+        var next = this.selectedListItem.getNext('li:not(.' + this.options.optgroupClass + ')');
         if (next) {
             this.selectItem(next, true);
         }
@@ -392,8 +436,8 @@ var styledSelectList = new Class({
         targetSize -= this.options.shrinkListWidth;
         this.ul.setStyle('width', targetSize);
     },
-        
-    toElement: function(){
-        return this.wrapper;   
+
+    toElement: function() {
+        return this.wrapper;
     }
 });

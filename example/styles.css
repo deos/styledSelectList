@@ -70,3 +70,16 @@ body {
 .styledSelectList > ul > li.selected {
 	background-color: yellow;
 }
+
+.styledSelectList .styledSelectOptGroup {
+	font-weight: bold;
+	cursor: default;
+}
+
+.styledSelectList .styledSelectOptGroup:hover {
+	background-color: #FFF;
+}
+
+.styledSelectList .styledSelectGrouped {
+	padding-left: 15px;    
+}
